@@ -17,7 +17,7 @@ public class ProceduralCreatureGeneratorEditor : Editor
             SerializedProperty seedProp = statsProp.FindPropertyRelative("seed");
             SerializedProperty randomizeSeedProp = statsProp.FindPropertyRelative("randomizeSeed");
             
-            EditorGUILayout.LabelField("Generation", EditorStyles.boldLabel);
+            // EditorGUILayout.LabelField("Generation", EditorStyles.boldLabel);
             EditorGUILayout.PropertyField(seedProp);
             EditorGUILayout.PropertyField(randomizeSeedProp);
             
