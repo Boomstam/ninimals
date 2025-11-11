@@ -379,13 +379,19 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         SpriteRenderer sr = head.AddComponent<SpriteRenderer>();
         sr.sortingOrder = 1;
         
-        float headSize = stats.spriteResolution * stats.bodySize * stats.headSizeRatio;
+        float baseHeadSize = stats.spriteResolution * stats.bodySize * stats.headSizeRatio;
         float sizeVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
-        headSize *= sizeVar;
+        baseHeadSize *= sizeVar;
+        
+        // Apply width and height ratios for more variation
+        float headWidth = baseHeadSize * stats.headWidthRatio;
+        float headHeight = baseHeadSize * stats.headHeightRatio;
         
         Color headColor = VaryColor(palette.primary, 0.08f, 0.15f, 0.1f);
-        sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
-            (int)headSize, (int)(headSize * 1.1f), headColor, stats.shapeVariation, rng);
+        
+        // Create head based on shape type
+        Sprite headSprite = CreateHeadShape((int)headWidth, (int)headHeight, headColor);
+        sr.sprite = headSprite;
         
         Vector3 attachPoint = new Vector3(
             torsoSize.x * 0.5f + stats.neckLength,
@@ -394,8 +400,62 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         );
         head.transform.localPosition = attachPoint;
         
-        // Add facial features
-        CreateFacialFeatures(head.transform, headSize, palette);
+        // Add facial features - pass the larger dimension as reference size
+        float headSizeForFeatures = Mathf.Max(headWidth, headHeight);
+        CreateFacialFeatures(head.transform, headSizeForFeatures, palette);
+    }
+    
+    private Sprite CreateHeadShape(int width, int height, Color color)
+    {
+        Sprite result = null;
+        
+        switch (stats.headShape)
+        {
+            case 0: // Round (circular)
+                int avgSize = (width + height) / 2;
+                result = ProceduralSpriteGenerator.CreateEllipse(
+                    avgSize, avgSize, color, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 1: // Oval (elliptical)
+                result = ProceduralSpriteGenerator.CreateEllipse(
+                    width, height, color, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 2: // Square (rounded rectangle)
+                result = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                    width, height, color, 0.25f, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 3: // Triangle (pointing up)
+                result = ProceduralSpriteGenerator.CreateTriangle(
+                    width, height, color, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 4: // Blob (irregular organic)
+                result = ProceduralSpriteGenerator.CreateBlob(
+                    width, height, color, stats.headIrregularity, rng);
+                break;
+            
+            case 5: // Elongated (very stretched oval)
+                int elongatedWidth = (int)(width * 0.7f);
+                int elongatedHeight = (int)(height * 1.3f);
+                result = ProceduralSpriteGenerator.CreateEllipse(
+                    elongatedWidth, elongatedHeight, color, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 6: // Diamond (angular)
+                result = ProceduralSpriteGenerator.CreateDiamond(
+                    width, height, color, stats.headIrregularity * 0.5f, rng);
+                break;
+            
+            case 7: // Hammerhead (wide top, narrow bottom)
+                result = ProceduralSpriteGenerator.CreateHammerhead(
+                    width, height, color, stats.headIrregularity * 0.5f, rng);
+                break;
+        }
+        
+        return result;
     }
     
     private void CreateLegs(Transform torsoTransform, Vector2 torsoSize, ColorPalette palette)
@@ -501,12 +561,33 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         float eyeSize = stats.spriteResolution * stats.eyeSize;
         float eyeSpacing = headSize * stats.eyeSpacing;
         
+        // Adjust eye position based on head shape for better placement
+        float eyeYOffset = headSize * 0.15f;
+        
+        switch (stats.headShape)
+        {
+            case 3: // Triangle - eyes lower and wider
+                eyeYOffset = headSize * 0.05f;
+                eyeSpacing *= 1.2f;
+                break;
+            case 4: // Blob - slightly higher
+                eyeYOffset = headSize * 0.2f;
+                break;
+            case 6: // Diamond - centered
+                eyeYOffset = 0f;
+                break;
+            case 7: // Hammerhead - eyes at top wider apart
+                eyeYOffset = headSize * 0.3f;
+                eyeSpacing *= 1.5f;
+                break;
+        }
+        
         // Left eye
-        CreateEye("LeftEye", headTransform, new Vector3(-eyeSpacing * 0.5f, headSize * 0.15f, 0f), 
+        CreateEye("LeftEye", headTransform, new Vector3(-eyeSpacing * 0.5f, eyeYOffset, 0f), 
             eyeSize, palette);
         
         // Right eye
-        CreateEye("RightEye", headTransform, new Vector3(eyeSpacing * 0.5f, headSize * 0.15f, 0f), 
+        CreateEye("RightEye", headTransform, new Vector3(eyeSpacing * 0.5f, eyeYOffset, 0f), 
             eyeSize, palette);
     }
     
@@ -569,7 +650,27 @@ public class ProceduralCreatureGenerator : MonoBehaviour
     {
         GameObject mouth = new GameObject("Mouth");
         mouth.transform.SetParent(headTransform);
-        mouth.transform.localPosition = new Vector3(0f, -headSize * 0.2f, 0f);
+        
+        // Adjust mouth position based on head shape
+        float mouthYOffset = -headSize * 0.2f;
+        
+        switch (stats.headShape)
+        {
+            case 2: // Square - centered
+                mouthYOffset = -headSize * 0.15f;
+                break;
+            case 3: // Triangle - very bottom
+                mouthYOffset = -headSize * 0.35f;
+                break;
+            case 5: // Elongated - lower
+                mouthYOffset = -headSize * 0.3f;
+                break;
+            case 7: // Hammerhead - at neck
+                mouthYOffset = -headSize * 0.25f;
+                break;
+        }
+        
+        mouth.transform.localPosition = new Vector3(0f, mouthYOffset, 0f);
         
         SpriteRenderer sr = mouth.AddComponent<SpriteRenderer>();
         sr.sortingOrder = 3;

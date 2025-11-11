@@ -362,4 +362,105 @@ public static class ProceduralSpriteGenerator
     {
         return CreateEllipse(size, size, color, 0f, null);
     }
+    
+    public static Sprite CreateDiamond(int width, int height, Color color, float variation = 0f, System.Random rng = null)
+    {
+        Texture2D texture = new Texture2D(width, height);
+        texture.filterMode = FilterMode.Bilinear;
+        
+        Color[] pixels = new Color[width * height];
+        
+        float centerX = width / 2f;
+        float centerY = height / 2f;
+        float halfWidth = width / 2f * 0.85f;
+        float halfHeight = height / 2f * 0.85f;
+        
+        float noiseOffsetX = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
+        float noiseOffsetY = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
+        
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float dx = Mathf.Abs(x - centerX);
+                float dy = Mathf.Abs(y - centerY);
+                
+                // Diamond shape is |x| + |y| <= 1
+                float normalizedDist = (dx / halfWidth) + (dy / halfHeight);
+                
+                if (variation > 0 && rng != null)
+                {
+                    float noiseValue = Mathf.PerlinNoise(noiseOffsetX + x * 0.02f, noiseOffsetY + y * 0.02f);
+                    normalizedDist += (noiseValue - 0.5f) * variation;
+                }
+                
+                if (normalizedDist <= 1f)
+                {
+                    float alpha = Mathf.Clamp01((1f - normalizedDist) * 2f);
+                    pixels[y * width + x] = new Color(color.r, color.g, color.b, alpha);
+                }
+                else
+                {
+                    pixels[y * width + x] = Color.clear;
+                }
+            }
+        }
+        
+        texture.SetPixels(pixels);
+        texture.Apply();
+        
+        return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f);
+    }
+    
+    public static Sprite CreateHammerhead(int width, int height, Color color, float variation = 0f, System.Random rng = null)
+    {
+        Texture2D texture = new Texture2D(width, height);
+        texture.filterMode = FilterMode.Bilinear;
+        
+        Color[] pixels = new Color[width * height];
+        
+        float centerX = width / 2f;
+        float neckWidth = width * 0.3f;
+        float headWidth = width * 0.9f;
+        float neckHeight = height * 0.4f;
+        float headHeight = height * 0.6f;
+        
+        for (int y = 0; y < height; y++)
+        {
+            for (int x = 0; x < width; x++)
+            {
+                float normalizedY = y / (float)height;
+                bool isInShape = false;
+                float distToEdge = 0f;
+                
+                if (normalizedY < 0.4f) // Neck part
+                {
+                    float widthAtY = neckWidth / 2f;
+                    distToEdge = widthAtY - Mathf.Abs(x - centerX);
+                    isInShape = Mathf.Abs(x - centerX) <= widthAtY;
+                }
+                else // Head part (wide)
+                {
+                    float widthAtY = headWidth / 2f;
+                    distToEdge = widthAtY - Mathf.Abs(x - centerX);
+                    isInShape = Mathf.Abs(x - centerX) <= widthAtY;
+                }
+                
+                if (isInShape)
+                {
+                    float alpha = Mathf.Clamp01(distToEdge / 3f);
+                    pixels[y * width + x] = new Color(color.r, color.g, color.b, alpha);
+                }
+                else
+                {
+                    pixels[y * width + x] = Color.clear;
+                }
+            }
+        }
+        
+        texture.SetPixels(pixels);
+        texture.Apply();
+        
+        return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(0.5f, 0.5f), 100f);
+    }
 }

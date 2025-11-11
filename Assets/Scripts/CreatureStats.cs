@@ -74,6 +74,22 @@ public class CreatureStats
     [Range(0.3f, 0.7f)]
     public float headSizeRatio = 0.4f;
     
+    [Range(0, 7)]
+    [Tooltip("0=Round, 1=Oval, 2=Square, 3=Triangle, 4=Blob, 5=Elongated, 6=Diamond, 7=Hammerhead")]
+    public int headShape = 0;
+    
+    [Range(0.5f, 2f)]
+    [Tooltip("Width multiplier for head")]
+    public float headWidthRatio = 1f;
+    
+    [Range(0.5f, 2f)]
+    [Tooltip("Height multiplier for head")]
+    public float headHeightRatio = 1f;
+    
+    [Range(0f, 0.5f)]
+    [Tooltip("How irregular/asymmetric the head is")]
+    public float headIrregularity = 0.1f;
+    
     [Header("Facial Features")]
     [Range(0, 3)]
     [Tooltip("0=Round, 1=Oval, 2=Slit, 3=Compound")]
@@ -182,6 +198,10 @@ public class CreatureStats
 
         // Existing limb properties
         headSizeRatio = Random.Range(0.35f, 0.55f);
+        headShape = Random.Range(0, 8);
+        headWidthRatio = Random.Range(0.6f, 2f);
+        headHeightRatio = Random.Range(0.6f, 2f);
+        headIrregularity = Random.Range(0f, 0.35f);
         
         // Facial features
         eyeType = Random.Range(0, 4);
