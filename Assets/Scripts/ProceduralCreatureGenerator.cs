@@ -420,42 +420,246 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         
         Color legColor = VaryColor(palette.secondary, 0.05f, 0.1f, 0.1f);
         
+        // Create 4 legs with proper z-ordering
         CreateLeg("FrontLeftLeg", torsoTransform, 
             new Vector3(torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
-            legWidth, legHeight, legColor, 1);
+            legWidth, legHeight, legColor, 1, palette);
             
         CreateLeg("FrontRightLeg", torsoTransform,
             new Vector3(torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
-            legWidth, legHeight, legColor, -1);
+            legWidth, legHeight, legColor, -1, palette);
         
         CreateLeg("BackLeftLeg", torsoTransform,
             new Vector3(-torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
-            legWidth, legHeight, legColor, 1);
+            legWidth, legHeight, legColor, 1, palette);
             
         CreateLeg("BackRightLeg", torsoTransform,
             new Vector3(-torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
-            legWidth, legHeight, legColor, -1);
+            legWidth, legHeight, legColor, -1, palette);
     }
     
     private void CreateLeg(string name, Transform parent, Vector3 attachPoint, 
-        float width, float height, Color color, int sortingOrderMod)
+        float width, float height, Color color, int sortingOrderMod, ColorPalette palette)
     {
         GameObject leg = new GameObject(name);
         leg.transform.SetParent(parent);
         leg.transform.localPosition = attachPoint;
         
-        SpriteRenderer sr = leg.AddComponent<SpriteRenderer>();
-        sr.sortingOrder = sortingOrderMod;
-        
         float widthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation * 0.5f;
         float heightVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation * 0.5f;
         
-        Color legColorVaried = VaryColor(color, 0.05f, 0.1f, 0.1f);
-        sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
-            (int)(width * widthVar), (int)(height * heightVar), 
-            legColorVaried, 0.5f, stats.shapeVariation * 0.5f, rng);
+        width *= widthVar;
+        height *= heightVar;
         
-        leg.transform.localPosition += new Vector3(0, -(height * heightVar / 100f) * 0.5f, 0);
+        // Create multi-segment leg based on type
+        float segmentHeight = height / stats.legSegments;
+        Vector3 currentPos = Vector3.zero;
+        
+        for (int i = 0; i < stats.legSegments; i++)
+        {
+            GameObject segment = new GameObject($"Segment_{i}");
+            segment.transform.SetParent(leg.transform);
+            segment.transform.localPosition = currentPos;
+            
+            SpriteRenderer sr = segment.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = sortingOrderMod;
+            
+            // Calculate tapering - thicker at top, thinner at bottom
+            float taperProgress = i / (float)stats.legSegments;
+            float segmentWidth = width * (1f - stats.legTaper * taperProgress);
+            
+            Color segmentColor = VaryColor(color, 0.03f, 0.08f, 0.08f);
+            
+            // Create segment based on leg type
+            switch (stats.legType)
+            {
+                case 0: // Simple - rounded rectangles
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)segmentWidth, (int)segmentHeight, 
+                        segmentColor, 0.5f, stats.shapeVariation * 0.5f, rng);
+                    break;
+                
+                case 1: // Segmented - distinct segments with joints
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)segmentWidth, (int)(segmentHeight * 0.9f), 
+                        segmentColor, 0.4f, stats.shapeVariation * 0.3f, rng);
+                    // Add visible joint
+                    if (i < stats.legSegments - 1)
+                    {
+                        CreateLegJoint(segment.transform, segmentWidth * 1.2f, segmentColor, segmentHeight);
+                    }
+                    break;
+                
+                case 2: // Digitigrade - angled segments like dog/cat legs
+                    float angleOffset = (i == 1) ? -15f : 0f; // Bend at middle segment
+                    segment.transform.localRotation = Quaternion.Euler(0f, 0f, angleOffset);
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)(segmentWidth * 0.9f), (int)segmentHeight, 
+                        segmentColor, stats.shapeVariation * 0.4f, rng);
+                    break;
+                
+                case 3: // Insectoid - thin, segmented with chitinous look
+                    Color darkened = Color.Lerp(segmentColor, Color.black, 0.15f);
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)(segmentWidth * 0.8f), (int)(segmentHeight * 0.95f), 
+                        darkened, 0.3f, 0f, rng);
+                    // Add chitin lines
+                    if (i < stats.legSegments - 1)
+                    {
+                        CreateChitinRidge(segment.transform, segmentWidth * 0.9f, darkened, segmentHeight);
+                    }
+                    break;
+                
+                case 4: // Tentacle - smooth, organic, tapered
+                    float tentacleWidth = segmentWidth * Mathf.Lerp(1f, 0.4f, taperProgress);
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)tentacleWidth, (int)segmentHeight, 
+                        segmentColor, stats.shapeVariation * 0.8f, rng);
+                    // Slight curve
+                    float curve = Mathf.Sin(taperProgress * Mathf.PI) * 5f;
+                    segment.transform.localRotation = Quaternion.Euler(0f, 0f, curve);
+                    break;
+                
+                case 5: // Clawed - muscular with defined segments
+                    float muscleBulge = 1f + Mathf.Sin(taperProgress * Mathf.PI) * 0.2f;
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)(segmentWidth * muscleBulge), (int)segmentHeight, 
+                        segmentColor, stats.shapeVariation * 0.6f, rng);
+                    break;
+                
+                case 6: // Hoofed - sturdy, thick segments
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)(segmentWidth * 1.1f), (int)segmentHeight, 
+                        segmentColor, 0.35f, stats.shapeVariation * 0.4f, rng);
+                    break;
+            }
+            
+            // Move down for next segment
+            currentPos += new Vector3(0, -(segmentHeight / 100f), 0);
+            
+            // Add spikes to leg if enabled
+            if (stats.hasLegSpikes && i < stats.legSegments - 1 && i < stats.legSpikeCount)
+            {
+                CreateLegSpike(segment.transform, segmentWidth, segmentHeight, palette);
+            }
+        }
+        
+        // Add foot/claw at the end
+        if (stats.hasClaws || stats.legType == 5)
+        {
+            CreateLegClaw(leg.transform, currentPos, width, height, palette);
+        }
+    }
+    
+    private void CreateLegJoint(Transform segmentTransform, float size, Color color, float segmentHeight)
+    {
+        GameObject joint = new GameObject("Joint");
+        joint.transform.SetParent(segmentTransform);
+        joint.transform.localPosition = new Vector3(0f, -(segmentHeight / 100f) * 0.5f, 0f);
+        
+        SpriteRenderer sr = joint.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 2;
+        
+        Color jointColor = Color.Lerp(color, Color.black, 0.2f);
+        sr.sprite = ProceduralSpriteGenerator.CreateCircle((int)size, jointColor);
+    }
+    
+    private void CreateChitinRidge(Transform segmentTransform, float width, Color color, float segmentHeight)
+    {
+        GameObject ridge = new GameObject("ChitinRidge");
+        ridge.transform.SetParent(segmentTransform);
+        ridge.transform.localPosition = new Vector3(0f, -(segmentHeight / 100f) * 0.45f, 0f);
+        
+        SpriteRenderer sr = ridge.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 1;
+        
+        Color ridgeColor = Color.Lerp(color, Color.black, 0.3f);
+        sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+            (int)(width * 0.95f), (int)(segmentHeight * 0.15f), ridgeColor, 0f, rng);
+    }
+    
+    private void CreateLegSpike(Transform segmentTransform, float width, float height, ColorPalette palette)
+    {
+        GameObject spike = new GameObject("Spike");
+        spike.transform.SetParent(segmentTransform);
+        
+        SpriteRenderer sr = spike.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 2;
+        
+        float spikeSize = stats.spriteResolution * stats.clawSize * 0.5f;
+        float randomAngle = ((float)rng.NextDouble() - 0.5f) * 40f + 90f;
+        
+        spike.transform.localRotation = Quaternion.Euler(0f, 0f, randomAngle);
+        spike.transform.localPosition = new Vector3(
+            -(width / 100f) * 0.5f, 
+            ((float)rng.NextDouble() - 0.5f) * (height / 100f), 
+            0f
+        );
+        
+        Color spikeColor = VaryColor(palette.accent, 0.1f, 0.15f, -0.2f);
+        sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+            (int)(spikeSize * 0.4f), (int)spikeSize, spikeColor, 0f, rng);
+    }
+    
+    private void CreateLegClaw(Transform legTransform, Vector3 position, float legWidth, float legHeight, ColorPalette palette)
+    {
+        GameObject claw = new GameObject("Claw");
+        claw.transform.SetParent(legTransform);
+        claw.transform.localPosition = position;
+        
+        SpriteRenderer sr = claw.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 1;
+        
+        float clawWidth = stats.spriteResolution * stats.clawSize * stats.bodySize;
+        float clawHeight = clawWidth * 0.8f;
+        
+        Color clawColor = VaryColor(palette.accent, 0.08f, 0.12f, -0.25f);
+        clawColor = Color.Lerp(clawColor, Color.black, 0.3f);
+        
+        // Different claw shapes based on leg type
+        switch (stats.legType)
+        {
+            case 3: // Insectoid - pointed claw
+                sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+                    (int)(clawWidth * 0.6f), (int)clawHeight, clawColor, 0.05f, rng);
+                break;
+            case 4: // Tentacle - sucker pad
+                sr.sprite = ProceduralSpriteGenerator.CreateCircle((int)(clawWidth * 0.8f), clawColor);
+                break;
+            case 5: // Clawed - three-pronged claw
+                CreateProngedClaw(claw.transform, clawWidth, clawHeight, clawColor);
+                return;
+            case 6: // Hoofed - flat hoof
+                sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                    (int)(clawWidth * 1.2f), (int)(clawHeight * 0.6f), clawColor, 0.3f, 0f, rng);
+                break;
+            default: // Simple claw
+                sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                    (int)(clawWidth * 0.8f), (int)(clawHeight * 0.7f), clawColor, 0.1f, rng);
+                break;
+        }
+    }
+    
+    private void CreateProngedClaw(Transform clawTransform, float width, float height, Color color)
+    {
+        // Create 3 claw prongs
+        for (int i = 0; i < 3; i++)
+        {
+            GameObject prong = new GameObject($"Prong_{i}");
+            prong.transform.SetParent(clawTransform);
+            
+            SpriteRenderer sr = prong.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = 1;
+            
+            float angle = -30f + (i * 30f);
+            float xOffset = (i - 1) * (width / 100f) * 0.3f;
+            
+            prong.transform.localPosition = new Vector3(xOffset, 0f, 0f);
+            prong.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+            
+            sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+                (int)(width * 0.35f), (int)(height * 0.9f), color, 0f, rng);
+        }
     }
     
     private void CreateTail(Transform torsoTransform, Vector2 torsoSize, ColorPalette palette)
@@ -463,26 +667,304 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         GameObject tail = new GameObject("Tail");
         tail.transform.SetParent(torsoTransform);
         
-        SpriteRenderer sr = tail.AddComponent<SpriteRenderer>();
-        sr.sortingOrder = -2;
-        
-        float tailWidth = stats.spriteResolution * 0.4f * stats.tailLength * stats.bodySize;
-        float tailHeight = stats.spriteResolution * 0.15f * stats.tailThickness * stats.bodySize;
+        float baseWidth = stats.spriteResolution * 0.15f * stats.tailThickness * stats.bodySize;
+        float totalLength = stats.spriteResolution * 0.5f * stats.tailLength * stats.bodySize;
         
         float widthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
-        float heightVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
+        float lengthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
+        
+        baseWidth *= widthVar;
+        totalLength *= lengthVar;
         
         Color tailColor = VaryColor(palette.accent, 0.1f, 0.15f, 0.15f);
-        sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
-            (int)(tailWidth * widthVar), (int)(tailHeight * heightVar),
-            tailColor, 0.6f, stats.shapeVariation, rng);
         
-        Vector3 attachPoint = new Vector3(
-            -torsoSize.x * 0.5f - (tailWidth * widthVar / 100f) * 0.5f,
-            0f,
-            0f
-        );
+        float segmentLength = totalLength / stats.tailSegments;
+        Vector3 currentPos = Vector3.zero;
+        Vector3 attachPoint = new Vector3(-torsoSize.x * 0.5f, 0f, 0f);
+        
         tail.transform.localPosition = attachPoint;
+        
+        // Track for forked tail
+        bool isFork = (stats.tailType == 5 && stats.tailSegments >= 3);
+        int forkPoint = isFork ? stats.tailSegments - 2 : -1;
+        
+        for (int i = 0; i < stats.tailSegments; i++)
+        {
+            // Handle forked tail
+            if (isFork && i == forkPoint)
+            {
+                CreateTailFork(tail.transform, currentPos, segmentLength, baseWidth, 
+                    tailColor, palette, stats.tailSegments - forkPoint);
+                break;
+            }
+            
+            GameObject segment = new GameObject($"Segment_{i}");
+            segment.transform.SetParent(tail.transform);
+            segment.transform.localPosition = currentPos;
+            
+            SpriteRenderer sr = segment.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = -2;
+            
+            // Calculate tapering and curving
+            float taperProgress = i / (float)stats.tailSegments;
+            float segmentWidth = baseWidth * (1f - stats.tailTaper * taperProgress);
+            
+            Color segmentColor = VaryColor(tailColor, 0.05f, 0.08f, 0.08f);
+            
+            // Create segment based on tail type
+            switch (stats.tailType)
+            {
+                case 0: // Simple - smooth taper
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)segmentLength, (int)segmentWidth,
+                        segmentColor, 0.6f, stats.shapeVariation, rng);
+                    break;
+                
+                case 1: // Segmented - distinct visible segments
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)(segmentLength * 0.95f), (int)segmentWidth,
+                        segmentColor, 0.5f, stats.shapeVariation * 0.5f, rng);
+                    // Add segment line
+                    if (i < stats.tailSegments - 1)
+                    {
+                        CreateTailSegmentLine(segment.transform, segmentWidth, segmentColor, segmentLength);
+                    }
+                    break;
+                
+                case 2: // Finned - fins along sides
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)(segmentLength * 0.9f), (int)segmentWidth,
+                        segmentColor, stats.shapeVariation * 0.6f, rng);
+                    if (i > 0 && i % 2 == 0)
+                    {
+                        CreateTailSideFin(segment.transform, segmentWidth, segmentLength, palette);
+                    }
+                    break;
+                
+                case 3: // Spiked - spikes along top
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)(segmentLength * 0.95f), (int)segmentWidth,
+                        segmentColor, 0.5f, stats.shapeVariation * 0.4f, rng);
+                    break;
+                
+                case 4: // Club - thick segments ending in bulb
+                    float clubMultiplier = (i >= stats.tailSegments - 2) ? 1.5f : 1f;
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)(segmentLength * 0.95f), (int)(segmentWidth * clubMultiplier),
+                        segmentColor, stats.shapeVariation * 0.5f, rng);
+                    if (i == stats.tailSegments - 1)
+                    {
+                        CreateTailClub(segment.transform, segmentWidth * 2f, palette);
+                    }
+                    break;
+                
+                case 5: // Forked - handled above
+                    sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                        (int)(segmentLength * 0.95f), (int)segmentWidth,
+                        segmentColor, 0.6f, stats.shapeVariation, rng);
+                    break;
+                
+                case 6: // Whip - very thin, flexible looking
+                    float whipWidth = segmentWidth * Mathf.Lerp(1f, 0.2f, taperProgress);
+                    sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                        (int)(segmentLength * 0.85f), (int)whipWidth,
+                        segmentColor, stats.shapeVariation * 0.9f, rng);
+                    // Add curve
+                    float curve = Mathf.Sin(taperProgress * Mathf.PI * 2f) * 8f * taperProgress;
+                    segment.transform.localRotation = Quaternion.Euler(0f, 0f, curve);
+                    break;
+            }
+            
+            // Add spikes if enabled
+            if (stats.hasTailSpikes && i < stats.tailSpikeCount)
+            {
+                CreateTailSpike(segment.transform, segmentWidth, segmentLength, palette);
+            }
+            
+            // Move left for next segment (tail extends left from body)
+            currentPos += new Vector3(-(segmentLength / 100f), 0f, 0f);
+            
+            // Add slight upward curve for natural look (except whip which has its own curve)
+            if (stats.tailType != 6)
+            {
+                float naturalCurve = taperProgress * 3f;
+                segment.transform.localRotation = Quaternion.Euler(0f, 0f, -naturalCurve);
+            }
+        }
+        
+        // Add tail fin at end if enabled
+        if (stats.hasTailFin && stats.tailType != 4 && stats.tailType != 5)
+        {
+            CreateTailEndFin(tail.transform, currentPos, baseWidth, palette);
+        }
+    }
+    
+    private void CreateTailSegmentLine(Transform segmentTransform, float width, Color color, float segmentLength)
+    {
+        GameObject line = new GameObject("SegmentLine");
+        line.transform.SetParent(segmentTransform);
+        line.transform.localPosition = new Vector3(-(segmentLength / 100f) * 0.5f, 0f, 0f);
+        
+        SpriteRenderer sr = line.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = -1;
+        
+        Color lineColor = Color.Lerp(color, Color.black, 0.25f);
+        sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+            (int)(segmentLength * 0.08f), (int)(width * 1.05f), lineColor, 0f, rng);
+    }
+    
+    private void CreateTailSideFin(Transform segmentTransform, float width, float segmentLength, ColorPalette palette)
+    {
+        for (int side = -1; side <= 1; side += 2)
+        {
+            GameObject fin = new GameObject($"SideFin_{(side > 0 ? "Right" : "Left")}");
+            fin.transform.SetParent(segmentTransform);
+            fin.transform.localPosition = new Vector3(0f, (width / 100f) * 0.6f * side, 0f);
+            
+            SpriteRenderer sr = fin.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = -3;
+            
+            float finSize = width * stats.tailFinSize * 0.8f;
+            Color finColor = VaryColor(palette.accent, 0.08f, 0.12f, 0.15f);
+            finColor.a = 0.85f;
+            
+            sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+                (int)(finSize * 1.2f), (int)finSize, finColor, 0.1f, rng);
+            fin.transform.localRotation = Quaternion.Euler(0f, 0f, side * 90f);
+        }
+    }
+    
+    private void CreateTailSpike(Transform segmentTransform, float width, float segmentLength, ColorPalette palette)
+    {
+        GameObject spike = new GameObject("Spike");
+        spike.transform.SetParent(segmentTransform);
+        
+        SpriteRenderer sr = spike.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = -1;
+        
+        float spikeSize = width * 0.8f;
+        float xPos = ((float)rng.NextDouble() - 0.5f) * (segmentLength / 100f);
+        
+        spike.transform.localPosition = new Vector3(xPos, (width / 100f) * 0.6f, 0f);
+        
+        Color spikeColor = VaryColor(palette.accent, 0.1f, 0.15f, -0.2f);
+        sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+            (int)(spikeSize * 0.5f), (int)spikeSize, spikeColor, 0.05f, rng);
+    }
+    
+    private void CreateTailClub(Transform segmentTransform, float size, ColorPalette palette)
+    {
+        GameObject club = new GameObject("Club");
+        club.transform.SetParent(segmentTransform);
+        club.transform.localPosition = new Vector3(-(size / 100f) * 0.3f, 0f, 0f);
+        
+        SpriteRenderer sr = club.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = -1;
+        
+        Color clubColor = VaryColor(palette.secondary, 0.08f, 0.12f, -0.15f);
+        clubColor = Color.Lerp(clubColor, Color.black, 0.2f);
+        
+        sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+            (int)(size * 1.2f), (int)size, clubColor, 0.15f, rng);
+        
+        // Add some studs/spikes on club
+        int studCount = 4;
+        for (int i = 0; i < studCount; i++)
+        {
+            GameObject stud = new GameObject($"Stud_{i}");
+            stud.transform.SetParent(club.transform);
+            
+            SpriteRenderer studSr = stud.AddComponent<SpriteRenderer>();
+            studSr.sortingOrder = 0;
+            
+            float angle = (i / (float)studCount) * 360f;
+            float distance = (size / 100f) * 0.3f;
+            float x = Mathf.Cos(angle * Mathf.Deg2Rad) * distance;
+            float y = Mathf.Sin(angle * Mathf.Deg2Rad) * distance;
+            
+            stud.transform.localPosition = new Vector3(x, y, 0f);
+            
+            Color studColor = Color.Lerp(clubColor, Color.black, 0.3f);
+            studSr.sprite = ProceduralSpriteGenerator.CreateCircle((int)(size * 0.2f), studColor);
+        }
+    }
+    
+    private void CreateTailEndFin(Transform tailTransform, Vector3 position, float tailWidth, ColorPalette palette)
+    {
+        GameObject fin = new GameObject("EndFin");
+        fin.transform.SetParent(tailTransform);
+        fin.transform.localPosition = position;
+        
+        SpriteRenderer sr = fin.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = -3;
+        
+        float finWidth = tailWidth * 2f * stats.tailFinSize;
+        float finHeight = tailWidth * 1.5f * stats.tailFinSize;
+        
+        Color finColor = VaryColor(palette.accent, 0.1f, 0.15f, 0.2f);
+        finColor.a = 0.9f;
+        
+        sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+            (int)finWidth, (int)finHeight, finColor, 0.15f, rng);
+        fin.transform.localRotation = Quaternion.Euler(0f, 0f, -90f);
+    }
+    
+    private void CreateTailFork(Transform tailTransform, Vector3 startPos, float segmentLength, 
+        float baseWidth, Color tailColor, ColorPalette palette, int forkedSegments)
+    {
+        // Create two forked branches
+        for (int fork = 0; fork < 2; fork++)
+        {
+            GameObject forkBranch = new GameObject($"Fork_{fork}");
+            forkBranch.transform.SetParent(tailTransform);
+            forkBranch.transform.localPosition = startPos;
+            
+            float forkAngle = (fork == 0) ? 15f : -15f;
+            Vector3 currentPos = Vector3.zero;
+            
+            for (int i = 0; i < forkedSegments; i++)
+            {
+                GameObject segment = new GameObject($"Segment_{i}");
+                segment.transform.SetParent(forkBranch.transform);
+                segment.transform.localPosition = currentPos;
+                
+                SpriteRenderer sr = segment.AddComponent<SpriteRenderer>();
+                sr.sortingOrder = -2;
+                
+                float taperProgress = i / (float)forkedSegments;
+                float segmentWidth = baseWidth * 0.7f * (1f - stats.tailTaper * taperProgress);
+                
+                Color segmentColor = VaryColor(tailColor, 0.05f, 0.08f, 0.08f);
+                
+                sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+                    (int)(segmentLength * 0.9f), (int)segmentWidth,
+                    segmentColor, 0.6f, stats.shapeVariation * 0.7f, rng);
+                
+                segment.transform.localRotation = Quaternion.Euler(0f, 0f, forkAngle * 0.3f);
+                
+                // Move along fork angle
+                float angleRad = (forkAngle + 180f) * Mathf.Deg2Rad;
+                currentPos += new Vector3(
+                    Mathf.Cos(angleRad) * (segmentLength / 100f),
+                    Mathf.Sin(angleRad) * (segmentLength / 100f),
+                    0f
+                );
+            }
+            
+            // Add small fin at fork tips
+            if (stats.hasTailFin)
+            {
+                GameObject tip = new GameObject("ForkTip");
+                tip.transform.SetParent(forkBranch.transform);
+                tip.transform.localPosition = currentPos;
+                
+                SpriteRenderer tipSr = tip.AddComponent<SpriteRenderer>();
+                tipSr.sortingOrder = -2;
+                
+                Color tipColor = VaryColor(palette.accent, 0.1f, 0.15f, 0.15f);
+                tipSr.sprite = ProceduralSpriteGenerator.CreateCircle((int)(baseWidth * 0.5f), tipColor);
+            }
+        }
     }
     
     private void CreateFacialFeatures(Transform headTransform, float headSize, ColorPalette palette)

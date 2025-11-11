@@ -125,17 +125,71 @@ public class CreatureStats
     [Tooltip("Number of horns")]
     public int hornCount = 2;
     
+    [Header("Legs")]
+    [Range(0, 6)]
+    [Tooltip("0=Simple, 1=Segmented, 2=Digitigrade, 3=Insectoid, 4=Tentacle, 5=Clawed, 6=Hoofed")]
+    public int legType = 0;
+    
+    [Range(1, 4)]
+    [Tooltip("Number of leg segments/joints")]
+    public int legSegments = 2;
+    
     [Range(0.5f, 2f)]
     public float legLength = 1f;
     
     [Range(0.3f, 1.5f)]
     public float legThickness = 0.6f;
     
+    [Range(0f, 0.3f)]
+    [Tooltip("Tapering from thick to thin down the leg")]
+    public float legTaper = 0.15f;
+    
+    [Tooltip("Add claws/feet to legs")]
+    public bool hasClaws = false;
+    
+    [Range(0.1f, 0.4f)]
+    [Tooltip("Size of claws/feet")]
+    public float clawSize = 0.2f;
+    
+    [Tooltip("Add spikes/barbs along legs")]
+    public bool hasLegSpikes = false;
+    
+    [Range(1, 4)]
+    [Tooltip("Number of spikes per leg")]
+    public int legSpikeCount = 2;
+
+    [Header("Tail")]
+    [Range(0, 6)]
+    [Tooltip("0=Simple, 1=Segmented, 2=Finned, 3=Spiked, 4=Club, 5=Forked, 6=Whip")]
+    public int tailType = 0;
+    
+    [Range(1, 8)]
+    [Tooltip("Number of tail segments")]
+    public int tailSegments = 3;
+    
     [Range(0.2f, 2f)]
     public float tailLength = 1f;
     
     [Range(0.2f, 1f)]
     public float tailThickness = 0.4f;
+    
+    [Range(0f, 0.5f)]
+    [Tooltip("Tapering from thick to thin down the tail")]
+    public float tailTaper = 0.3f;
+    
+    [Tooltip("Add fins to tail")]
+    public bool hasTailFin = false;
+    
+    [Range(0.2f, 0.8f)]
+    [Tooltip("Size of tail fin")]
+    public float tailFinSize = 0.5f;
+    
+    [Tooltip("Add spikes/barbs to tail")]
+    public bool hasTailSpikes = false;
+    
+    [Range(2, 6)]
+    [Tooltip("Number of tail spikes")]
+    public int tailSpikeCount = 3;
     
     [Range(0f, 0.5f)]
     public float neckLength = 0.2f;
@@ -216,10 +270,28 @@ public class CreatureStats
         hasHorns = Random.value > 0.75f;
         hornCount = Random.Range(1, 5);
         
+        // Legs with new properties
+        legType = Random.Range(0, 7);
+        legSegments = Random.Range(1, 4);
         legLength = Random.Range(0.7f, 1.5f);
         legThickness = Random.Range(0.4f, 1f);
+        legTaper = Random.Range(0f, 0.25f);
+        hasClaws = Random.value > 0.6f;
+        clawSize = Random.Range(0.15f, 0.3f);
+        hasLegSpikes = Random.value > 0.7f;
+        legSpikeCount = Random.Range(1, 4);
+        
+        // Tail with new properties
+        tailType = Random.Range(0, 7);
+        tailSegments = Random.Range(2, 7);
         tailLength = Random.Range(0.4f, 1.6f);
         tailThickness = Random.Range(0.25f, 0.7f);
+        tailTaper = Random.Range(0.1f, 0.4f);
+        hasTailFin = Random.value > 0.65f;
+        tailFinSize = Random.Range(0.3f, 0.7f);
+        hasTailSpikes = Random.value > 0.7f;
+        tailSpikeCount = Random.Range(2, 5);
+        
         neckLength = Random.Range(0f, 0.4f);
         proportionVariation = Random.Range(0.1f, 0.2f);
         
