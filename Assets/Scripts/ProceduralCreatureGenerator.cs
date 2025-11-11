@@ -4,24 +4,13 @@ public class ProceduralCreatureGenerator : MonoBehaviour
 {
     public CreatureStats stats = new CreatureStats();
     
-    [Header("Runtime")]
     [SerializeField] private GameObject creatureRoot;
     
     private System.Random rng;
 
-    private void Start()
-    {
-        if (stats.randomizeSeed)
-        {
-            stats.seed = Random.Range(0, 100000);
-        }
-        GenerateCreature();
-    }
-
     [ContextMenu("Generate Creature")]
     public void GenerateCreature()
     {
-        // Clean up existing creature
         if (creatureRoot != null)
         {
             if (Application.isPlaying)
@@ -30,33 +19,53 @@ public class ProceduralCreatureGenerator : MonoBehaviour
                 DestroyImmediate(creatureRoot);
         }
         
-        // Initialize RNG
+        if (stats.randomizeSeed)
+        {
+            stats.seed = Random.Range(0, 100000);
+        }
+        
         rng = new System.Random(stats.seed);
         
-        // Apply seed-based randomization if desired
         stats.RandomizeFromSeed();
         
-        // Create root
         creatureRoot = new GameObject("Creature");
         creatureRoot.transform.SetParent(transform);
         creatureRoot.transform.localPosition = Vector3.zero;
         
-        // Generate color palette
         ColorPalette palette = GenerateColorPalette();
         
-        // Create body parts
+        CreateTorso(palette);
+    }
+    
+    public void GenerateFromCurrentStats()
+    {
+        if (creatureRoot != null)
+        {
+            if (Application.isPlaying)
+                Destroy(creatureRoot);
+            else
+                DestroyImmediate(creatureRoot);
+        }
+        
+        rng = new System.Random(stats.seed);
+        
+        creatureRoot = new GameObject("Creature");
+        creatureRoot.transform.SetParent(transform);
+        creatureRoot.transform.localPosition = Vector3.zero;
+        
+        ColorPalette palette = GenerateColorPalette();
+        
         CreateTorso(palette);
     }
     
     private ColorPalette GenerateColorPalette()
     {
-        float baseHue = (float)rng.NextDouble();
-        
-        Color primary = Color.HSVToRGB(baseHue, 0.6f, 0.7f);
-        Color secondary = Color.HSVToRGB((baseHue + 0.1f) % 1f, 0.5f, 0.65f);
-        Color accent = Color.HSVToRGB((baseHue + 0.3f) % 1f, 0.7f, 0.75f);
-        
-        return new ColorPalette { primary = primary, secondary = secondary, accent = accent };
+        return new ColorPalette 
+        { 
+            primary = stats.primaryColor, 
+            secondary = stats.secondaryColor, 
+            accent = stats.accentColor 
+        };
     }
     
     private void CreateTorso(ColorPalette palette)
@@ -68,11 +77,9 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         SpriteRenderer sr = torso.AddComponent<SpriteRenderer>();
         sr.sortingOrder = 0;
         
-        // Torso dimensions
         float torsoWidth = stats.spriteResolution * stats.bodySize;
         float torsoHeight = stats.spriteResolution * stats.bodySize * 0.7f;
         
-        // Add slight variation
         float widthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
         float heightVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
         
@@ -83,10 +90,8 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
             (int)torsoWidth, (int)torsoHeight, torsoColor, 0.3f, stats.shapeVariation, rng);
         
-        // Store actual torso size for attachment calculations
         Vector2 torsoSize = new Vector2(torsoWidth / 100f, torsoHeight / 100f);
         
-        // Create attached parts
         CreateHead(torso.transform, torsoSize, palette);
         CreateLegs(torso.transform, torsoSize, palette);
         CreateTail(torso.transform, torsoSize, palette);
@@ -108,8 +113,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
             (int)headSize, (int)(headSize * 1.1f), headColor, stats.shapeVariation, rng);
         
-        // Position: front-top of torso
-        float headLocalSize = headSize / 100f;
         Vector3 attachPoint = new Vector3(
             torsoSize.x * 0.5f + stats.neckLength,
             torsoSize.y * 0.3f,
@@ -120,13 +123,11 @@ public class ProceduralCreatureGenerator : MonoBehaviour
     
     private void CreateLegs(Transform torsoTransform, Vector2 torsoSize, ColorPalette palette)
     {
-        // Leg dimensions
         float legWidth = stats.spriteResolution * 0.15f * stats.legThickness * stats.bodySize;
         float legHeight = stats.spriteResolution * 0.5f * stats.legLength * stats.bodySize;
         
         Color legColor = VaryColor(palette.secondary, 0.05f, 0.1f, 0.1f);
         
-        // Front legs
         CreateLeg("FrontLeftLeg", torsoTransform, 
             new Vector3(torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
             legWidth, legHeight, legColor, 1);
@@ -135,7 +136,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             new Vector3(torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
             legWidth, legHeight, legColor, -1);
         
-        // Back legs
         CreateLeg("BackLeftLeg", torsoTransform,
             new Vector3(-torsoSize.x * 0.25f, -torsoSize.y * 0.5f, 0f),
             legWidth, legHeight, legColor, 1);
@@ -153,7 +153,7 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         leg.transform.localPosition = attachPoint;
         
         SpriteRenderer sr = leg.AddComponent<SpriteRenderer>();
-        sr.sortingOrder = sortingOrderMod; // 1 for front legs, -1 for back
+        sr.sortingOrder = sortingOrderMod;
         
         float widthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation * 0.5f;
         float heightVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation * 0.5f;
@@ -163,7 +163,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             (int)(width * widthVar), (int)(height * heightVar), 
             legColorVaried, 0.5f, stats.shapeVariation * 0.5f, rng);
         
-        // Adjust pivot so leg hangs down from attachment
         leg.transform.localPosition += new Vector3(0, -(height * heightVar / 100f) * 0.5f, 0);
     }
     
@@ -186,7 +185,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             (int)(tailWidth * widthVar), (int)(tailHeight * heightVar),
             tailColor, 0.6f, stats.shapeVariation, rng);
         
-        // Position: back-center of torso
         Vector3 attachPoint = new Vector3(
             -torsoSize.x * 0.5f - (tailWidth * widthVar / 100f) * 0.5f,
             0f,
@@ -199,9 +197,9 @@ public class ProceduralCreatureGenerator : MonoBehaviour
     {
         Color.RGBToHSV(baseColor, out float h, out float s, out float v);
         
-        h += ((float)rng.NextDouble() - 0.5f) * hueVar;
-        s = Mathf.Clamp01(s + ((float)rng.NextDouble() - 0.5f) * satVar);
-        v = Mathf.Clamp01(v + ((float)rng.NextDouble() - 0.5f) * valVar);
+        h += ((float)rng.NextDouble() - 0.5f) * hueVar * 0.5f;
+        s = Mathf.Clamp01(s + ((float)rng.NextDouble() - 0.5f) * satVar * 0.5f);
+        v = Mathf.Clamp01(v + ((float)rng.NextDouble() - 0.5f) * valVar * 0.5f);
         
         return Color.HSVToRGB(h % 1f, s, v);
     }
