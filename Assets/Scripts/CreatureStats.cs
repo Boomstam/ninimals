@@ -74,6 +74,41 @@ public class CreatureStats
     [Range(0.3f, 0.7f)]
     public float headSizeRatio = 0.4f;
     
+    [Header("Facial Features")]
+    [Range(0, 3)]
+    [Tooltip("0=Round, 1=Oval, 2=Slit, 3=Compound")]
+    public int eyeType = 0;
+    
+    [Range(0.05f, 0.2f)]
+    [Tooltip("Size of eyes relative to head")]
+    public float eyeSize = 0.15f;
+    
+    [Range(0.3f, 0.8f)]
+    [Tooltip("How far apart eyes are (0.5 = centered)")]
+    public float eyeSpacing = 0.5f;
+    
+    [Range(0, 2)]
+    [Tooltip("0=None, 1=Simple, 2=Teeth")]
+    public int mouthType = 0;
+    
+    [Range(0.1f, 0.4f)]
+    [Tooltip("Size of mouth relative to head")]
+    public float mouthSize = 0.2f;
+    
+    [Tooltip("Add antennae to head")]
+    public bool hasAntennae = false;
+    
+    [Range(0.2f, 0.8f)]
+    [Tooltip("Length of antennae")]
+    public float antennaeLength = 0.5f;
+    
+    [Tooltip("Add horns/spikes to head")]
+    public bool hasHorns = false;
+    
+    [Range(1, 4)]
+    [Tooltip("Number of horns")]
+    public int hornCount = 2;
+    
     [Range(0.5f, 2f)]
     public float legLength = 1f;
     
@@ -147,6 +182,20 @@ public class CreatureStats
 
         // Existing limb properties
         headSizeRatio = Random.Range(0.35f, 0.55f);
+        
+        // Facial features
+        eyeType = Random.Range(0, 4);
+        eyeSize = Random.Range(0.08f, 0.18f);
+        eyeSpacing = Random.Range(0.4f, 0.7f);
+        mouthType = Random.Range(0, 3);
+        mouthSize = Random.Range(0.15f, 0.35f);
+        
+        hasAntennae = Random.value > 0.7f;
+        antennaeLength = Random.Range(0.3f, 0.7f);
+        
+        hasHorns = Random.value > 0.75f;
+        hornCount = Random.Range(1, 5);
+        
         legLength = Random.Range(0.7f, 1.5f);
         legThickness = Random.Range(0.4f, 1f);
         tailLength = Random.Range(0.4f, 1.6f);

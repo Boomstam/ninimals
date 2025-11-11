@@ -393,6 +393,9 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             0f
         );
         head.transform.localPosition = attachPoint;
+        
+        // Add facial features
+        CreateFacialFeatures(head.transform, headSize, palette);
     }
     
     private void CreateLegs(Transform torsoTransform, Vector2 torsoSize, ColorPalette palette)
@@ -465,6 +468,232 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             0f
         );
         tail.transform.localPosition = attachPoint;
+    }
+    
+    private void CreateFacialFeatures(Transform headTransform, float headSize, ColorPalette palette)
+    {
+        float headSizeWorld = headSize / 100f;
+        
+        // Create eyes
+        CreateEyes(headTransform, headSizeWorld, palette);
+        
+        // Create mouth
+        if (stats.mouthType > 0)
+        {
+            CreateMouth(headTransform, headSizeWorld, palette);
+        }
+        
+        // Create antennae
+        if (stats.hasAntennae)
+        {
+            CreateAntennae(headTransform, headSizeWorld, palette);
+        }
+        
+        // Create horns
+        if (stats.hasHorns)
+        {
+            CreateHorns(headTransform, headSizeWorld, palette);
+        }
+    }
+    
+    private void CreateEyes(Transform headTransform, float headSize, ColorPalette palette)
+    {
+        float eyeSize = stats.spriteResolution * stats.eyeSize;
+        float eyeSpacing = headSize * stats.eyeSpacing;
+        
+        // Left eye
+        CreateEye("LeftEye", headTransform, new Vector3(-eyeSpacing * 0.5f, headSize * 0.15f, 0f), 
+            eyeSize, palette);
+        
+        // Right eye
+        CreateEye("RightEye", headTransform, new Vector3(eyeSpacing * 0.5f, headSize * 0.15f, 0f), 
+            eyeSize, palette);
+    }
+    
+    private void CreateEye(string name, Transform parent, Vector3 position, float size, ColorPalette palette)
+    {
+        GameObject eye = new GameObject(name);
+        eye.transform.SetParent(parent);
+        eye.transform.localPosition = position;
+        
+        SpriteRenderer sr = eye.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 3;
+        
+        Color eyeColor = Color.white;
+        Sprite eyeSprite = null;
+        
+        switch (stats.eyeType)
+        {
+            case 0: // Round
+                eyeSprite = ProceduralSpriteGenerator.CreateCircle((int)size, eyeColor);
+                break;
+            case 1: // Oval
+                eyeSprite = ProceduralSpriteGenerator.CreateEllipse(
+                    (int)(size * 0.8f), (int)size, eyeColor, 0f, rng);
+                break;
+            case 2: // Slit (vertical)
+                eyeSprite = ProceduralSpriteGenerator.CreateEllipse(
+                    (int)(size * 0.3f), (int)size, eyeColor, 0f, rng);
+                break;
+            case 3: // Compound (hexagonal pattern)
+                eyeSprite = ProceduralSpriteGenerator.CreateCircle((int)size, 
+                    VaryColor(palette.accent, 0.1f, 0.2f, 0.2f));
+                break;
+        }
+        
+        sr.sprite = eyeSprite;
+        
+        // Create pupil
+        GameObject pupil = new GameObject("Pupil");
+        pupil.transform.SetParent(eye.transform);
+        pupil.transform.localPosition = Vector3.zero;
+        
+        SpriteRenderer pupilSr = pupil.AddComponent<SpriteRenderer>();
+        pupilSr.sortingOrder = 4;
+        
+        float pupilSize = size * 0.5f;
+        Color pupilColor = Color.black;
+        
+        if (stats.eyeType == 2) // Slit pupil
+        {
+            pupilSr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                (int)(pupilSize * 0.2f), (int)(pupilSize * 1.2f), pupilColor, 0f, rng);
+        }
+        else
+        {
+            pupilSr.sprite = ProceduralSpriteGenerator.CreateCircle((int)pupilSize, pupilColor);
+        }
+    }
+    
+    private void CreateMouth(Transform headTransform, float headSize, ColorPalette palette)
+    {
+        GameObject mouth = new GameObject("Mouth");
+        mouth.transform.SetParent(headTransform);
+        mouth.transform.localPosition = new Vector3(0f, -headSize * 0.2f, 0f);
+        
+        SpriteRenderer sr = mouth.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 3;
+        
+        float mouthWidth = stats.spriteResolution * stats.mouthSize;
+        float mouthHeight = mouthWidth * 0.4f;
+        
+        Color mouthColor = Color.black;
+        
+        switch (stats.mouthType)
+        {
+            case 1: // Simple oval mouth
+                sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                    (int)mouthWidth, (int)mouthHeight, mouthColor, 0.1f, rng);
+                break;
+            case 2: // Mouth with visible teeth
+                sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
+                    (int)mouthWidth, (int)mouthHeight, mouthColor, 0.15f, rng);
+                CreateTeeth(mouth.transform, mouthWidth, mouthHeight);
+                break;
+        }
+    }
+    
+    private void CreateTeeth(Transform mouthTransform, float mouthWidth, float mouthHeight)
+    {
+        int teethCount = 5;
+        float teethSpacing = mouthWidth / (teethCount + 1);
+        float toothWidth = mouthWidth * 0.08f;
+        float toothHeight = mouthHeight * 0.6f;
+        
+        for (int i = 0; i < teethCount; i++)
+        {
+            GameObject tooth = new GameObject($"Tooth_{i}");
+            tooth.transform.SetParent(mouthTransform);
+            
+            SpriteRenderer sr = tooth.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = 4;
+            
+            float xPos = -mouthWidth * 0.4f + teethSpacing * (i + 1);
+            tooth.transform.localPosition = new Vector3(xPos / 100f, 0f, 0f);
+            
+            sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+                (int)toothWidth, (int)toothHeight, Color.white, 0f, rng);
+        }
+    }
+    
+    private void CreateAntennae(Transform headTransform, float headSize, ColorPalette palette)
+    {
+        float antennaeLength = stats.spriteResolution * stats.antennaeLength * stats.bodySize * 0.3f;
+        float antennaeThickness = stats.spriteResolution * 0.05f;
+        
+        Color antennaeColor = VaryColor(palette.accent, 0.1f, 0.15f, 0.15f);
+        
+        // Left antenna
+        CreateAntenna("LeftAntenna", headTransform, 
+            new Vector3(-headSize * 0.3f, headSize * 0.4f, 0f),
+            antennaeLength, antennaeThickness, antennaeColor, -25f);
+        
+        // Right antenna
+        CreateAntenna("RightAntenna", headTransform, 
+            new Vector3(headSize * 0.3f, headSize * 0.4f, 0f),
+            antennaeLength, antennaeThickness, antennaeColor, 25f);
+    }
+    
+    private void CreateAntenna(string name, Transform parent, Vector3 position, 
+        float length, float thickness, Color color, float angle)
+    {
+        GameObject antenna = new GameObject(name);
+        antenna.transform.SetParent(parent);
+        antenna.transform.localPosition = position;
+        antenna.transform.localRotation = Quaternion.Euler(0f, 0f, angle);
+        
+        SpriteRenderer sr = antenna.AddComponent<SpriteRenderer>();
+        sr.sortingOrder = 2;
+        
+        sr.sprite = ProceduralSpriteGenerator.CreateRoundedRectangle(
+            (int)thickness, (int)length, color, 0.5f, 0.05f, rng);
+        
+        antenna.transform.localPosition += antenna.transform.up * (length / 100f) * 0.5f;
+        
+        // Add tip bulb
+        GameObject tip = new GameObject("Tip");
+        tip.transform.SetParent(antenna.transform);
+        tip.transform.localPosition = new Vector3(0f, (length / 100f) * 0.5f, 0f);
+        
+        SpriteRenderer tipSr = tip.AddComponent<SpriteRenderer>();
+        tipSr.sortingOrder = 3;
+        
+        float tipSize = thickness * 2f;
+        tipSr.sprite = ProceduralSpriteGenerator.CreateCircle((int)tipSize, 
+            VaryColor(color, 0.05f, 0.1f, 0.15f));
+    }
+    
+    private void CreateHorns(Transform headTransform, float headSize, ColorPalette palette)
+    {
+        float hornSpacing = headSize * 1.2f / (stats.hornCount + 1);
+        float hornSize = stats.spriteResolution * 0.15f * stats.bodySize;
+        
+        Color hornColor = VaryColor(palette.secondary, 0.1f, 0.15f, -0.2f);
+        hornColor = Color.Lerp(hornColor, Color.black, 0.2f);
+        
+        for (int i = 0; i < stats.hornCount; i++)
+        {
+            GameObject horn = new GameObject($"Horn_{i}");
+            horn.transform.SetParent(headTransform);
+            
+            SpriteRenderer sr = horn.AddComponent<SpriteRenderer>();
+            sr.sortingOrder = 2;
+            
+            float sizeVar = 0.8f + (float)rng.NextDouble() * 0.4f;
+            float hornWidth = hornSize * 0.4f * sizeVar;
+            float hornHeight = hornSize * sizeVar;
+            
+            sr.sprite = ProceduralSpriteGenerator.CreateTriangle(
+                (int)hornWidth, (int)hornHeight, hornColor, 0.05f, rng);
+            
+            float xPos = -headSize * 0.5f + hornSpacing * (i + 1);
+            Vector3 position = new Vector3(xPos, headSize * 0.45f, 0f);
+            horn.transform.localPosition = position;
+            
+            // Slight random tilt
+            float randomRotation = ((float)rng.NextDouble() - 0.5f) * 20f;
+            horn.transform.localRotation = Quaternion.Euler(0f, 0f, randomRotation);
+        }
     }
     
     private Color VaryColor(Color baseColor, float hueVar, float satVar, float valVar)
