@@ -117,6 +117,14 @@ public static class ProceduralSpriteGenerator
 
     public static Sprite CreateTriangle(int width, int height, Color color, float variation = 0f, System.Random rng = null)
     {
+        Debug.Log($"[CreateTriangle] Creating triangle: {width}x{height}, variation: {variation}");
+        
+        if (width <= 0 || height <= 0)
+        {
+            Debug.LogError($"[CreateTriangle] Invalid dimensions: {width}x{height}");
+            return null;
+        }
+        
         Texture2D texture = new Texture2D(width, height);
         texture.filterMode = FilterMode.Bilinear;
         
@@ -129,6 +137,8 @@ public static class ProceduralSpriteGenerator
         
         float noiseOffsetX = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
         float noiseOffsetY = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
+        
+        int pixelsFilled = 0;
         
         for (int y = 0; y < height; y++)
         {
@@ -154,6 +164,7 @@ public static class ProceduralSpriteGenerator
                     float distToEdge = Mathf.Min(x - leftEdge, rightEdge - x);
                     float alpha = Mathf.Clamp01(distToEdge / 2f);
                     pixels[y * width + x] = new Color(color.r, color.g, color.b, alpha);
+                    if (alpha > 0.1f) pixelsFilled++;
                 }
                 else
                 {
@@ -161,6 +172,8 @@ public static class ProceduralSpriteGenerator
                 }
             }
         }
+        
+        Debug.Log($"[CreateTriangle] Filled {pixelsFilled} pixels out of {width * height}");
         
         texture.SetPixels(pixels);
         texture.Apply();
@@ -170,6 +183,14 @@ public static class ProceduralSpriteGenerator
 
     public static Sprite CreateBlob(int width, int height, Color color, float irregularity = 0.3f, System.Random rng = null)
     {
+        Debug.Log($"[CreateBlob] Creating blob: {width}x{height}, irregularity: {irregularity}");
+        
+        if (width <= 0 || height <= 0)
+        {
+            Debug.LogError($"[CreateBlob] Invalid dimensions: {width}x{height}");
+            return null;
+        }
+        
         Texture2D texture = new Texture2D(width, height);
         texture.filterMode = FilterMode.Bilinear;
         
@@ -182,6 +203,8 @@ public static class ProceduralSpriteGenerator
         
         float noiseOffsetX = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
         float noiseOffsetY = rng != null ? (float)rng.NextDouble() * 1000f : 0f;
+        
+        int pixelsFilled = 0;
         
         for (int y = 0; y < height; y++)
         {
@@ -211,6 +234,7 @@ public static class ProceduralSpriteGenerator
                 {
                     float alpha = Mathf.Clamp01((1f - normalizedDist) * 2f);
                     pixels[y * width + x] = new Color(color.r, color.g, color.b, alpha);
+                    if (alpha > 0.1f) pixelsFilled++;
                 }
                 else
                 {
@@ -218,6 +242,8 @@ public static class ProceduralSpriteGenerator
                 }
             }
         }
+        
+        Debug.Log($"[CreateBlob] Filled {pixelsFilled} pixels out of {width * height}");
         
         texture.SetPixels(pixels);
         texture.Apply();
@@ -277,7 +303,16 @@ public static class ProceduralSpriteGenerator
         newTexture.SetPixels(newPixels);
         newTexture.Apply();
         
-        return Sprite.Create(newTexture, baseSprite.rect, baseSprite.pivot, baseSprite.pixelsPerUnit);
+        // Pivot should be normalized (0.5, 0.5 for center), NOT pixel coordinates
+        Vector2 pivot = new Vector2(0.5f, 0.5f);
+        
+        Debug.Log($"[ApplyPattern] Creating sprite: {newTexture.width}x{newTexture.height}, pivot: {pivot}");
+        
+        Sprite result = Sprite.Create(newTexture, new Rect(0, 0, newTexture.width, newTexture.height), pivot, 100f);
+        
+        Debug.Log($"[ApplyPattern] Result sprite pivot: {result.pivot}");
+        
+        return result;
     }
 
     private static float GenerateSpots(int x, int y, float scale, float offsetX, float offsetY, System.Random rng)
