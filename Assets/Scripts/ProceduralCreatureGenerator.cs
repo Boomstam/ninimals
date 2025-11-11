@@ -82,7 +82,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         float torsoWidth = stats.spriteResolution * stats.bodySize * stats.bodyWidthRatio;
         float torsoHeight = stats.spriteResolution * stats.bodySize * 0.7f * stats.bodyHeightRatio;
         
-        Debug.Log($"[Body Creation] Initial dimensions: {torsoWidth}x{torsoHeight}");
         
         float widthVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
         float heightVar = 1f + ((float)rng.NextDouble() - 0.5f) * stats.proportionVariation;
@@ -90,58 +89,21 @@ public class ProceduralCreatureGenerator : MonoBehaviour
         torsoWidth *= widthVar;
         torsoHeight *= heightVar;
         
-        Debug.Log($"[Body Creation] Final dimensions: {torsoWidth}x{torsoHeight}");
-        Debug.Log($"[Body Creation] Body shape: {stats.bodyShape}, Color: {palette.primary}");
         
         Color torsoColor = VaryColor(palette.primary, 0.05f, 0.1f, 0.1f);
         
         // Create base body shape
         Sprite bodySprite = CreateBodyShape((int)torsoWidth, (int)torsoHeight, torsoColor);
         
-        if (bodySprite == null)
-        {
-            Debug.LogError("[Body Creation] FAILED - bodySprite is null!");
-        }
-        else
-        {
-            Debug.Log($"[Body Creation] Sprite created successfully: {bodySprite.texture.width}x{bodySprite.texture.height}");
-        }
-        
         // Apply pattern if enabled
         if (stats.patternType > 0)
         {
-            Debug.Log($"[Body Creation] Applying pattern type: {stats.patternType}");
             bodySprite = ProceduralSpriteGenerator.ApplyPattern(
                 bodySprite, stats.patternType, palette.pattern, 
                 stats.patternIntensity, stats.patternScale, rng);
         }
         
         sr.sprite = bodySprite;
-        
-        if (sr.sprite == null)
-        {
-            Debug.LogError("[Body Creation] CRITICAL - SpriteRenderer.sprite is null!");
-        }
-        else
-        {
-            Debug.Log($"[Body Creation] Body sprite assigned to renderer successfully");
-            Debug.Log($"[Body Creation] Sprite bounds: {sr.sprite.bounds.size}");
-            Debug.Log($"[Body Creation] Sprite rect: {sr.sprite.rect}");
-            Debug.Log($"[Body Creation] Sprite pivot: {sr.sprite.pivot}");
-            Debug.Log($"[Body Creation] SpriteRenderer enabled: {sr.enabled}");
-            Debug.Log($"[Body Creation] GameObject active: {torso.activeSelf}");
-            Debug.Log($"[Body Creation] Torso position: {torso.transform.position}");
-            
-            // Check if texture has any visible pixels
-            Texture2D tex = bodySprite.texture;
-            Color[] pixels = tex.GetPixels();
-            int visiblePixels = 0;
-            for (int i = 0; i < pixels.Length; i++)
-            {
-                if (pixels[i].a > 0.1f) visiblePixels++;
-            }
-            Debug.Log($"[Body Creation] Visible pixels in final sprite: {visiblePixels} / {pixels.Length}");
-        }
         
         Vector2 torsoSize = new Vector2(torsoWidth / 100f, torsoHeight / 100f);
         
@@ -170,7 +132,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
 
     private Sprite CreateBodyShape(int width, int height, Color color)
     {
-        Debug.Log($"[CreateBodyShape] Creating shape type {stats.bodyShape} with dimensions {width}x{height}");
         
         Sprite result = null;
         
@@ -201,15 +162,9 @@ public class ProceduralCreatureGenerator : MonoBehaviour
                 break;
             
             default:
-                Debug.LogWarning($"[CreateBodyShape] Unknown body shape {stats.bodyShape}, defaulting to Ellipse");
                 result = ProceduralSpriteGenerator.CreateEllipse(
                     width, height, color, stats.shapeVariation, rng);
                 break;
-        }
-        
-        if (result == null)
-        {
-            Debug.LogError($"[CreateBodyShape] Shape generation returned null for type {stats.bodyShape}");
         }
         
         return result;
