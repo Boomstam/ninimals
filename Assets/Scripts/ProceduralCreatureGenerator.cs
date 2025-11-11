@@ -769,9 +769,6 @@ public class ProceduralCreatureGenerator : MonoBehaviour
                     sr.sprite = ProceduralSpriteGenerator.CreateEllipse(
                         (int)(segmentLength * 0.85f), (int)whipWidth,
                         segmentColor, stats.shapeVariation * 0.9f, rng);
-                    // Add curve
-                    float curve = Mathf.Sin(taperProgress * Mathf.PI * 2f) * 8f * taperProgress;
-                    segment.transform.localRotation = Quaternion.Euler(0f, 0f, curve);
                     break;
             }
             
@@ -781,15 +778,54 @@ public class ProceduralCreatureGenerator : MonoBehaviour
                 CreateTailSpike(segment.transform, segmentWidth, segmentLength, palette);
             }
             
-            // Move left for next segment (tail extends left from body)
-            currentPos += new Vector3(-(segmentLength / 100f), 0f, 0f);
+            // Calculate curvature based on tail type and progress
+            float curvatureAngle = 0f;
             
-            // Add slight upward curve for natural look (except whip which has its own curve)
-            if (stats.tailType != 6)
+            switch (stats.tailType)
             {
-                float naturalCurve = taperProgress * 3f;
-                segment.transform.localRotation = Quaternion.Euler(0f, 0f, -naturalCurve);
+                case 0: // Simple - gentle natural curve upward
+                    curvatureAngle = -taperProgress * taperProgress * 15f; // Quadratic curve
+                    break;
+                
+                case 1: // Segmented - slight upward curve
+                    curvatureAngle = -taperProgress * 8f;
+                    break;
+                
+                case 2: // Finned - swimming motion curve
+                    curvatureAngle = Mathf.Sin(taperProgress * Mathf.PI) * -12f;
+                    break;
+                
+                case 3: // Spiked - dramatic aggressive curve
+                    curvatureAngle = -taperProgress * taperProgress * 20f;
+                    break;
+                
+                case 4: // Club - curves down then up for weight
+                    if (i < stats.tailSegments - 2)
+                        curvatureAngle = taperProgress * 10f; // Down
+                    else
+                        curvatureAngle = -5f; // Up at end
+                    break;
+                
+                case 5: // Forked - gentle S-curve
+                    curvatureAngle = -taperProgress * 10f;
+                    break;
+                
+                case 6: // Whip - dramatic sinusoidal wave
+                    curvatureAngle = Mathf.Sin(taperProgress * Mathf.PI * 2f) * 15f * taperProgress;
+                    break;
             }
+            
+            // Apply rotation for curvature
+            segment.transform.localRotation = Quaternion.Euler(0f, 0f, curvatureAngle);
+            
+            // Move along the curve direction for next segment
+            float angleRad = (180f + curvatureAngle) * Mathf.Deg2Rad;
+            Vector3 moveDirection = new Vector3(
+                Mathf.Cos(angleRad) * (segmentLength / 100f),
+                Mathf.Sin(angleRad) * (segmentLength / 100f),
+                0f
+            );
+            currentPos += moveDirection;
         }
         
         // Add tail fin at end if enabled
@@ -919,8 +955,9 @@ public class ProceduralCreatureGenerator : MonoBehaviour
             forkBranch.transform.SetParent(tailTransform);
             forkBranch.transform.localPosition = startPos;
             
-            float forkAngle = (fork == 0) ? 15f : -15f;
+            float forkAngle = (fork == 0) ? 20f : -20f;
             Vector3 currentPos = Vector3.zero;
+            float accumulatedAngle = 0f;
             
             for (int i = 0; i < forkedSegments; i++)
             {
@@ -940,13 +977,17 @@ public class ProceduralCreatureGenerator : MonoBehaviour
                     (int)(segmentLength * 0.9f), (int)segmentWidth,
                     segmentColor, 0.6f, stats.shapeVariation * 0.7f, rng);
                 
-                segment.transform.localRotation = Quaternion.Euler(0f, 0f, forkAngle * 0.3f);
+                // Add progressive curve to fork - curves outward more as it extends
+                float segmentCurve = forkAngle * 0.4f * taperProgress;
+                accumulatedAngle += segmentCurve;
                 
-                // Move along fork angle
-                float angleRad = (forkAngle + 180f) * Mathf.Deg2Rad;
+                segment.transform.localRotation = Quaternion.Euler(0f, 0f, segmentCurve);
+                
+                // Move along the curved direction
+                float totalAngle = (180f + forkAngle + accumulatedAngle) * Mathf.Deg2Rad;
                 currentPos += new Vector3(
-                    Mathf.Cos(angleRad) * (segmentLength / 100f),
-                    Mathf.Sin(angleRad) * (segmentLength / 100f),
+                    Mathf.Cos(totalAngle) * (segmentLength / 100f),
+                    Mathf.Sin(totalAngle) * (segmentLength / 100f),
                     0f
                 );
             }
